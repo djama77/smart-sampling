@@ -3,12 +3,13 @@ import pandas as pd
 import streamlit as st
 from src.sampling import sample_size_proportion, simple_random_sample, systematic_sample, stratified_allocation
 from src.quality import quality_audit, quality_issues
+from src.weights import simple_random_base_weights, stratified_base_weights
 
 st.set_page_config(page_title="SMART SAMPLING", page_icon="📊", layout="wide")
 st.title("📊 SMART SAMPLING")
 st.caption("Conception, sélection et contrôle des échantillons statistiques")
 st.info("Outil d'assistance méthodologique : les paramètres, la base de sondage et les résultats doivent être validés par le statisticien.")
-page = st.sidebar.radio("Navigation", ["Tableau de bord", "Taille d'échantillon", "Tirage d'unités", "Allocation stratifiée", "Contrôle qualité"])
+page = st.sidebar.radio("Navigation", ["Tableau de bord", "Taille d'échantillon", "Tirage d'unités", "Allocation stratifiée", "Contrôle qualité", "Pondération"])
 
 def read_uploaded_file(uploaded):
     if uploaded.name.lower().endswith(".csv"):
@@ -22,7 +23,7 @@ def read_uploaded_file(uploaded):
 if page == "Tableau de bord":
     st.subheader("Bienvenue dans SMART SAMPLING")
     c1, c2, c3 = st.columns(3)
-    c1.metric("Version", "0.2.0")
+    c1.metric("Version", "0.3.0")
     c2.metric("Modules disponibles", "4")
     c3.metric("Statut", "Prototype évolutif")
     st.markdown("""**Fonctionnalités disponibles**
@@ -89,7 +90,7 @@ elif page == "Allocation stratifiée":
         except (ValueError, TypeError) as exc:
             st.error(str(exc))
 
-else:
+elif page == "Contrôle qualité":
     st.subheader("Contrôle qualité de la base de sondage")
     st.caption("Contrôles descriptifs : doublons, identifiants, valeurs manquantes, variables constantes et valeurs atypiques.")
     uploaded = st.file_uploader("Importer une base CSV ou Excel", type=["csv", "xlsx"], key="quality_upload")
@@ -122,3 +123,44 @@ else:
                 st.warning("Les valeurs atypiques sont repérées par la règle descriptive IQR. Elles ne sont pas nécessairement erronées : interpréter les résultats selon le contexte de l'enquête.")
         except Exception as exc:
             st.error(f"Impossible de contrôler cette base : {exc}")
+
+
+else:
+    st.subheader("Probabilités d'inclusion et poids de base")
+    st.warning("Ce module couvre uniquement le tirage aléatoire simple sans remise et le tirage aléatoire simple sans remise à l'intérieur de chaque strate. Il ne calcule pas les poids de plans systématiques, en grappes ou à plusieurs degrés.")
+    method = st.radio("Plan de sondage", ["Aléatoire simple", "Stratifié (tirage aléatoire simple dans chaque strate)"])
+    sample_file = st.file_uploader("Importer le fichier des unités effectivement sélectionnées", type=["csv", "xlsx"], key="weights_sample")
+    if sample_file:
+        try:
+            sample_frame = read_uploaded_file(sample_file)
+            if sample_frame.empty:
+                st.warning("Le fichier de l'échantillon est vide.")
+            else:
+                st.write(f"Échantillon : {len(sample_frame)} unités.")
+                st.dataframe(sample_frame.head(10), use_container_width=True)
+                if method == "Aléatoire simple":
+                    population_size = st.number_input("Effectif total de la population (N)", min_value=len(sample_frame), value=max(100, len(sample_frame)), step=1)
+                    if st.button("Calculer les probabilités et poids", type="primary"):
+                        result = simple_random_base_weights(sample_frame, int(population_size))
+                        st.metric("Probabilité d'inclusion de chaque unité", f"{len(result) / int(population_size):.6f}")
+                        st.metric("Poids de base", f"{int(population_size) / len(result):.4f}")
+                        st.dataframe(result, use_container_width=True)
+                        st.download_button("Télécharger les poids CSV", result.to_csv(index=False).encode("utf-8-sig"), "echantillon_avec_poids.csv", "text/csv")
+                else:
+                    population_file = st.file_uploader("Importer le tableau des effectifs de population par strate (une ligne par strate)", type=["csv", "xlsx"], key="weights_population")
+                    if population_file:
+                        population_frame = read_uploaded_file(population_file)
+                        if not population_frame.empty and len(population_frame.columns) >= 2:
+                            sample_stratum = st.selectbox("Variable strate dans l'échantillon", list(sample_frame.columns), key="sample_stratum")
+                            pop_stratum = st.selectbox("Variable strate dans la population", list(population_frame.columns), key="pop_stratum")
+                            pop_size = st.selectbox("Variable effectif N_h dans la population", [c for c in population_frame.columns if c != pop_stratum], key="pop_size")
+                            if st.button("Calculer les probabilités et poids par strate", type="primary"):
+                                normalized_population = population_frame[[pop_stratum, pop_size]].rename(columns={pop_stratum: sample_stratum, pop_size: "N_h"})
+                                result = stratified_base_weights(sample_frame, normalized_population, sample_stratum, "N_h")
+                                st.dataframe(result, use_container_width=True)
+                                st.download_button("Télécharger les poids CSV", result.to_csv(index=False).encode("utf-8-sig"), "echantillon_stratifie_avec_poids.csv", "text/csv")
+                        else:
+                            st.error("Le tableau de population doit contenir au moins deux colonnes et des données.")
+        except Exception as exc:
+            st.error(f"Calcul impossible : {exc}")
+    st.caption("Formules : EAS sans remise, pi_i = n/N et poids de base = N/n. En stratifié, pi_hi = n_h/N_h et poids de base = N_h/n_h. Les poids calculés sont des poids de base de sondage, avant ajustement de non-réponse ou calibration.")
