@@ -43,16 +43,14 @@ def stratified_base_weights(
     pop = population_by_stratum[[stratum_column, population_column]].copy()
     if pop.empty or pop[stratum_column].isna().any() or pop[stratum_column].duplicated().any():
         raise ValueError("La table de population doit avoir une ligne unique et renseignée par strate.")
-    if pop[population_column].isna().any() or (pop[population_column] <= 0).any():
-        raise ValueError("Les effectifs de population par strate doivent être positifs.")
     if not pd.api.types.is_numeric_dtype(pop[population_column]):
         raise ValueError("Les effectifs de population doivent être numériques.")
+    if pop[population_column].isna().any() or (pop[population_column] <= 0).any():
+        raise ValueError("Les effectifs de population par strate doivent être positifs.")
     if (pop[population_column] % 1 != 0).any():
         raise ValueError("Les effectifs de population doivent être des entiers.")
     counts = sample.groupby(stratum_column, dropna=False).size().rename("n_h")
     meta = pop.set_index(stratum_column).join(counts)
-    if meta["n_h"].isna().any():
-        raise ValueError("Une strate de l'échantillon est absente de la table de population.")
     if (meta["n_h"].fillna(0) > meta[population_column]).any():
         raise ValueError("L'échantillon dépasse l'effectif de population d'au moins une strate.")
     unknown = set(sample[stratum_column].unique()) - set(meta.index)
