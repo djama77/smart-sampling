@@ -1,29 +1,48 @@
 # SMART SAMPLING
 
-Application intelligente de conception et de gestion des échantillons statistiques.
+Plateforme open source d'aide à la conception, à la sélection et au contrôle des échantillons statistiques.
 
-## Objectif
-SMART SAMPLING accompagne les statisticiens dans la préparation des enquêtes : calcul de taille d'échantillon, allocation, sélection des unités et documentation des choix méthodologiques. L'application assiste le statisticien sans remplacer son jugement ni sa validation scientifique.
+## Version 0.2 — contrôle qualité
 
-## Première version (V1)
-- Calcul de taille d'échantillon pour une proportion, avec correction pour population finie.
-- Tirage aléatoire simple sans remise.
-- Tirage systématique.
-- Échantillonnage stratifié avec allocation proportionnelle ou de Neyman.
+Fonctionnalités disponibles :
+- Calcul de taille d'échantillon pour une proportion, avec correction pour population finie et ajustement de non-réponse.
+- Tirage aléatoire simple sans remise et tirage systématique reproductible par graine.
+- Allocation stratifiée proportionnelle et allocation de Neyman.
 - Import de fichiers CSV et Excel.
-- Export des résultats en CSV.
+- Contrôles descriptifs des lignes dupliquées, identifiants manquants/dupliqués, valeurs manquantes, variables constantes et valeurs atypiques selon la règle IQR.
+- Export CSV des résultats de tirage, allocations et constats de qualité.
 
-## Lancer l'application
-Installer les dépendances avec `pip install -r requirements.txt`, puis lancer `streamlit run app.py`.
+## Installation et lancement
+
+```bash
+python -m pip install -r requirements.txt
+streamlit run app.py
+```
+
+## Tests
+
+```bash
+python -m pip install pytest
+python -m pytest -q
+```
 
 ## Structure
-- `app.py` : interface Streamlit
-- `src/sampling.py` : méthodes statistiques
-- `requirements.txt` : dépendances
-- `tests/` : tests à ajouter
 
-## Principes méthodologiques
-Les résultats dépendent de la qualité de la base de sondage, de la définition de la population cible et des hypothèses saisies. Les probabilités d'inclusion, les pondérations et les limites du plan doivent être vérifiées avant toute exploitation officielle.
+- `app.py` : interface Streamlit.
+- `src/sampling.py` : calculs de taille, tirages et allocations.
+- `src/quality.py` : contrôles descriptifs de qualité.
+- `tests/test_quality.py` : tests unitaires des contrôles qualité.
 
-## Statut
-Version de démarrage — V1 en développement.
+## Interprétation et limites
+
+Les contrôles signalent des anomalies potentielles ; ils ne modifient jamais automatiquement les données. La règle IQR repère des valeurs atypiques, qui ne sont pas nécessairement des erreurs. Les contrôles de couverture, de cohérence métier et de représentativité nécessitent des règles et référentiels propres à chaque enquête.
+
+Les probabilités d'inclusion et les pondérations doivent être calculées en fonction du plan de sondage réellement appliqué. La validation scientifique finale reste sous la responsabilité du statisticien.
+
+## Protection des données
+
+Ne publiez jamais de bases réelles ou confidentielles dans le dépôt GitHub. Utilisez des données fictives pour les démonstrations et les tests.
+
+## Feuille de route
+
+Les prochaines étapes sont les probabilités d'inclusion et les poids de base, puis l'analyse de représentativité, les estimations tenant compte du plan, et les rapports PDF/Excel.
