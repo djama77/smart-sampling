@@ -37,3 +37,10 @@ def test_stratified_rejects_duplicate_population_strata():
     population = pd.DataFrame({"strate": ["A", "A"], "N_h": [10, 12]})
     with pytest.raises(ValueError, match="unique"):
         stratified_base_weights(sample, population, "strate", "N_h")
+
+
+def test_stratified_allows_population_stratum_not_selected():
+    sample = pd.DataFrame({"strate": ["A", "A"]})
+    population = pd.DataFrame({"strate": ["A", "B"], "N_h": [20, 80]})
+    result = stratified_base_weights(sample, population, "strate", "N_h")
+    assert result["poids_base"].tolist() == pytest.approx([10, 10])
